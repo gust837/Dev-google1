@@ -1,10 +1,16 @@
 #include <Arduino.h>
 #include <BluetoothSerial.h>
-
+#include <Bounce2.h>
+Bounce Botao = Bounce();
 BluetoothSerial Recebo;
+String Peresa;
+String PeresaAnterior;
 uint8_t receba[] = {0x14, 0x33, 0x5C, 0x52, 0x2E, 0x36};
 bool pisca;
 bool led;
+bool ledAmigo;
+bool ledAmigoAnt;
+bool piscaAmigo;
 unsigned long tempo;
 // void setup() {
 //   Serial.begin(9600);
@@ -45,6 +51,7 @@ void setup(){
   pinMode(12, OUTPUT);
   Serial.begin(9600);
   Serial.setTimeout(5000);
+  Botao.attach(0, INPUT_PULLUP);
   if(Recebo.begin("Esp-Recebo", true)){
     Serial.println("Deu certo");
   }
@@ -62,8 +69,10 @@ void setup(){
 }
 
 
-
+String mensagemEnviar;
 void loop(){
+  Botao.update();
+  Botao.read();
   String mensagenCapitada;
   if(Recebo.available()){
     mensagenCapitada = Recebo.readStringUntil('\n');
@@ -72,9 +81,9 @@ void loop(){
   }
 
   if(Serial.available()){
-   String mensagemEnviar = Serial.readStringUntil('\n');
-   mensagemEnviar.trim();
-   Recebo.println(mensagemEnviar); 
+    mensagemEnviar = Serial.readStringUntil('\n');
+    mensagemEnviar.trim();
+    Recebo.println(mensagemEnviar); 
   }
   if(mensagenCapitada.equals("liga")){
   Serial.println("acendo o Led");
@@ -99,6 +108,21 @@ if(pisca){
   }
 }
 
+if(Botao.fell()){
+  ledAmigo = !ledAmigo;
+   if(ledAmigo) Peresa = "ligar";
+  else if (!ledAmigo ) Peresa = "desligar";
+  }
+ 
+  if(Botao.currentDuration() >= 2000 && Botao.read() == 0){
+    Peresa = "piscar";
+  }
+if(Peresa != PeresaAnterior){
+    Recebo.println(Peresa);
+}
+  
+
+PeresaAnterior = Peresa;
 digitalWrite(12, led);
 }
 
