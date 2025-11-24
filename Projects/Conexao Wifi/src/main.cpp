@@ -1,25 +1,49 @@
 #include <Arduino.h>
 #include <Wifi.h>
 #include <ezTime.h>
+#include <LiquidCrystal_I2C.h>
+#include <Bounce2.h>
+
+LiquidCrystal_I2C lcd(0x27,20,4);
+Bounce Botao = Bounce();
 
 void conexaoWifi();
 void reconexaoWifi();
-
+bool alarme;
+bool alarmeAtivado;
 const char *SSID = "SENAI IoT";
 const char *SENHA = "Senai@IoT";
 const unsigned long tempoEsperaConexao = 5000;
 const unsigned long tempoEsperaReconexao = 5000;
 
+String dia, mes, ano, hora, minuto, segundo, diaAnterior, segundoAnterior, horaAnterior, minutoAnterior, anoAnterior, mesAnterior, horaAlarme, minutoAlarme, texto;
 Timezone sp;
 
 void setup(){
   Serial.begin(115200);
+
+  Botao.attach(0, INPUT_PULLUP);
+
+  pinMode(2, OUTPUT);
+
+  lcd.init();
+
+  lcd.backlight();
+
+  lcd.setCursor(0,2);
+
+  lcd.print("Alarme:");
+
+  lcd.setCursor(0,3);
+
+  lcd.print("Status:");
 
   conexaoWifi();
   
   waitForSync();
   
   sp.setLocation("America/Sao_Paulo");
+
 
   //Serial.println(sp.dateTime());
   //Serial.println(sp.dateTime("d/m/Y H:i:s"));
@@ -49,23 +73,90 @@ void setup(){
   // Serial.println(sp.year());
   // Serial.println(sp.dayOfYear());
   // Serial.println(sp.isDST());
-  Serial.print(sp.dateTime("\\Ho\\j\\e é "));
-  Serial.print(sp.dateTime("d").toInt() - 1);
-  Serial.print(sp.dateTime(" \\d\\e F" ));
-  Serial.print(sp.dateTime(" \\e \\a\\g\\or\\a \\s\\a\\o h "));
-  Serial.print(sp.dateTime(" i ").toInt() - 20);
-  Serial.print(sp.dateTime(" s "));
-
-
-
-
+  
 }
 
 
 
 void loop(){
+  Botao.update();
+  if(Botao.fell()){
+    Serial.println("Botao Acionado");
+  }
 
-  reconexaoWifi();
+  texto = Serial.readStringUntil('\n');
+  texto.trim();
+  lcd.setCursor(8,2);
+  lcd.printf("%s:%s", horaAlarme, minutoAlarme);
+  
+
+  //reconexaoWifi();
+
+  dia = sp.dateTime("d");
+  mes = sp.dateTime("M");
+  ano = sp.dateTime("Y");
+
+  hora = sp.dateTime("H");
+  minuto = sp.dateTime("i");
+  segundo = sp.dateTime("s");
+
+  if(segundo != segundoAnterior){
+    lcd.setCursor(8,1);
+    lcd.print(segundo);
+  }
+
+  if(hora != horaAnterior){
+    lcd.setCursor(2,1);
+    lcd.print(hora);
+  }
+
+  if(minuto != minutoAnterior){
+    lcd.setCursor(5,1);
+    lcd.print(minuto);
+  }
+
+  if(dia != diaAnterior){
+    lcd.setCursor(0,0);
+    lcd.print(dia);
+  }
+
+  if(ano != anoAnterior){
+    lcd.setCursor(13,0);
+    lcd.print(ano);
+  }
+
+  if(mes != mesAnterior){
+    lcd.setCursor(6,0);
+    lcd.print(mes);
+  }
+if(!texto.equals("")){
+  horaAlarme = texto.substring(0,2);
+  minutoAlarme = texto.substring(3);
+  lcd.setCursor(8,3);
+  lcd.print("Ativado   ");
+}
+
+if(horaAlarme.equals(hora) && minutoAlarme.equals(minuto)){
+  alarme = true;
+  alarmeAtivado = true;
+    if(alarme == true){
+      digitalWrite(2, HIGH);
+      lcd.setCursor(8,3);
+      lcd.print("Ativo     ");
+    }
+}
+
+else if(alarmeAtivado == true && Botao.fell()){
+  alarme = false;
+  Serial.println("Alarme desativado");
+}
+
+else{
+  alarme = false;
+  lcd.setCursor(8,3);
+  lcd.print("Desativado");
+  digitalWrite(2, LOW);
+}
 
 }
 
